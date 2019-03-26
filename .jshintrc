@@ -1,0 +1,16 @@
+{
+    "esversion": 6,
+    "strict":"implied",
+    "browser":true,
+    "devel":true,
+    "globals":{
+        "createjs":false,
+        "manifest":true,
+        "AssetManager":false,
+        "Mover":false,
+        "MoverDiagonal":false,
+        "Snake":false,
+        "Bug":false,
+        "UserInterface":false
+    }
+}
