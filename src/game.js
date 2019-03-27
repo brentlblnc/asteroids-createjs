@@ -98,9 +98,9 @@
         document.onkeyup = onKeyUp;
     }
 
-    function onAddBug(e) {
+    function onAddAsteroid(e) {
         // find bug in pool and add to game
-        for (let i=0; i<bugPool.length; i++) {
+        for (let i=0; i<asteroidPool.length; i++) {
             let newBug = bugPool[i];
             if (newBug.active === false) {
                 newBug.active = true;
