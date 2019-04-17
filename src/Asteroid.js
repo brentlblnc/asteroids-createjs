@@ -15,6 +15,10 @@ class Asteroid {
         return this._active;
     }
 
+    get asteroid() {
+        return this._sprite;
+    }
+
     set active(val) {
         this._active = val;
     }
@@ -27,14 +31,23 @@ class Asteroid {
     // Public methods
     setupMe() {
         this._destroyed = false;
-        this._sprite.setTransform(500, 100, 0.2, 0.2);
+        this._sprite.setTransform(this._randomMe(0, 800), this._randomMe(0, 600), 0.2, 0.2);
         this._sprite.gotoAndPlay("asteroidRotate");
         this._stage.addChild(this._sprite);
 
         // Random speed selection for asteroid
-        this._sprite.mover.speed = this._randomMe(2,6);
+        this._sprite.mover.speed = this._randomMe(2, 6);
 
         // Calculate dimension of sprite
-        let dimensions = this._sprite.getBounds();
+        //let dimensions = this._sprite.getBounds();
+    }
+
+    destroy() {
+        this._sprite.gotoAndPlay("explosion");
+        this._sprite.on("animationend", e => {
+            this._sprite.stop();
+            this._stage.removeChild(this._sprite);
+        });
+
     }
 }

@@ -13,12 +13,16 @@ class Shooter {
         this._stage.addChild(this._sprite);
     }
 
-    rotateCCW() {
-        this._sprite.gotoAndPlay("rotateCCW");
+    rotate(rotation) {
+
+        //this._sprite.setTransform(400, 300, 0.2, 0.2, rotation);
+        this._sprite.rotation = rotation;
     }
 
-    rotateCW() {
-        this._sprite.gotoAndPlay("rotateClockwise");
+    fire(laser, angle) {
+        laser.dispatch(angle);
+        //laser.setTransform(400, 275, 0.2, 0.2, angle);
+        console.log("shot");
     }
 
     pause() {

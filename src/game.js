@@ -4,7 +4,7 @@
    Brent LeBlanc
 */
 
-(function() {
+(function () {
 
     // Game variables
     let stage = null;
@@ -22,6 +22,7 @@
     const ASTEROID_START_DELAY = 500;
     const ASTEROID_MAX = 50;
     let asteroidPool = [];
+    let laserPool = [];
     let asteroidsDestroyed = null;
     let asteroidTimer = null;
 
@@ -33,6 +34,8 @@
     let background = null;
     let shooter = null;
     let asteroid = null;
+    let rotation = 0;
+    let laser = null;
 
     // ------------------------------------------------------------ Event handlers
     function onReady(e) {
@@ -43,30 +46,33 @@
         // Construct game objects
         // Might want to encapsulate all this in a UserInterface class
         background = assetManager.getSprite("spritesheet");
+
         background.setTransform(0, 0, 0.5, 0.5);
         background.gotoAndStop("background");
         stage.addChild(background);
-        
+
         introCaption = assetManager.getSprite("spritesheet");
         introCaption.setTransform(140, 180, 0.5, 0.5);
         introCaption.gotoAndStop("introCaption");
-        
+
+        //laser = assetManager.getSprite("spritesheet");
+
         stage.addChild(introCaption);
-        
+
         // endCaption = assetManager.getSprite("spritesheet");
         // endCaption.gotoAndStop("endCaption");
         // endCaption.x = 50;
         // endCaption.y = 50;
-        
+
         shooter = new Shooter(stage, assetManager);
 
-        for (let i=0; i<ASTEROID_MAX; i++) {
+        for (let i = 0; i < ASTEROID_MAX; i++) {
             asteroidPool.push(new Asteroid(stage, assetManager, shooter));
         }
-        
+
         // Event listener to start game
         background.on("click", onStartGame);
-        
+
         // ** Listen for dispatched events here ** 
 
         console.log(">> game ready");
@@ -83,48 +89,60 @@
 
         // Start the shooter object
         shooter.setupMe();
-        asteroid.setupMe();
+
+        asteroidPool.map(asteroid => {
+            asteroid.setupMe();
+        });
 
         asteroidsDestroyed = 0;
 
-        asteroidTimer = window.setInterval(onAddAsteroid, ASTEROID_START_DELAY);
+        //asteroidTimer = window.setInterval(onAddAsteroid, ASTEROID_START_DELAY);
 
         // Current state of keys
         leftKey = false;
         rightKey = false;
-        
+
         // Event listeners for keyboard keys
         document.onkeydown = onKeyDown;
         document.onkeyup = onKeyUp;
     }
 
-    function onAddAsteroid(e) {
-        // find bug in pool and add to game
-        for (let i=0; i<asteroidPool.length; i++) {
-            let newBug = bugPool[i];
-            if (newBug.active === false) {
-                newBug.active = true;
-                newBug.setupMe();
-                newBug.releaseMe();
-                break;
-            }
-        }
-    }
-    
+    // function onAddAsteroid(e) {
+    //     // find bug in pool and add to game
+    //     for (let i=0; i<asteroidPool.length; i++) {
+    //         let newAsteroid = asteroidPool[i];
+    //         if (newAsteroid.active === false) {
+    //             newAsteroid.active = true;
+    //             newAsteroid.setupMe();
+    //             //newAsteroid.releaseMe();
+    //             break;
+    //         }
+    //     }
+    // }
+
     function onKeyDown(e) {
         // Which keystrokes are left and right?
+
+
         switch (e.keyCode) {
-            case 37: 
-                console.log("left arrow");
+            // hit spacebar
+            case 32:
+                //console.log("shoot!");
+                //shooter.fire(new Laser(stage, assetManager), rotation-90);
+                laserPool.push(new Laser(stage, assetManager));
+                laser = laserPool[laserPool.length - 1].laser;
+                laser.gotoAndStop("laser");
+                laser.setTransform(400, 275, 0.2, 0.2, rotation - 90);
+                stage.addChild(laser);
+                spacebar = true;
+                break;
+            case 37:
                 leftKey = true;
                 rightKey = false;
-                //shooter.rotateCCW();
                 break;
             case 39:
-                console.log("right arrow");
-                leftKey = false;
                 rightKey = true;
-                //shooter.rotateCW();
+                leftKey = false;
                 break;
             default: console.log("some other button");
         }
@@ -133,7 +151,7 @@
     function onKeyUp(e) {
         // Which keystrokes are left and right?
         switch (e.keyCode) {
-            case 37: 
+            case 37:
                 leftKey = false;
                 rightKey = false;
                 break;
@@ -144,18 +162,79 @@
         }
     }
 
+    function degToRad(degrees) {
+        return degrees * Math.PI / 180;
+    }
+
+    function isCollision(laser, asteroid) {
+
+    }
+
     function onTick(e) {
         // Testing FPS of game
         document.getElementById("fps").innerHTML = createjs.Ticker.getMeasuredFPS();
 
         // ** Other logic here **
 
-        if (leftKey) {
-            // Might want to create a Mover class for this purpose
-            shooter.rotateCCW();
-        } else if (rightKey) {
-            shooter.rotateCW();
+        if (rotation % 360 === 0 || rotation % -360 === 0) {
+            rotation = 0;
         }
+
+        if (leftKey) {
+            rotation -= 10;
+            shooter.rotate(rotation);
+        }
+
+        if (rightKey) {
+            rotation += 10;
+            shooter.rotate(rotation);
+        }
+
+        if (spacebar) {
+            if (rotation % 90 === 0) {
+                if (rotation === 0) laser.y -= 10;
+                else if (rotation === 90) laser.x += 10;
+                else if (rotation === 180) laser.y += 10;
+                else laser.x -= 10;
+            }
+            else if (rotation > 0 && rotation < 90) {
+                laser.x += 10 * Math.sin(degToRad(rotation));
+                laser.y -= 10 * Math.cos(degToRad(rotation));
+            } else if (rotation > 90 && rotation < 180) {
+                laser.x += 10 * Math.sin(degToRad(180 - rotation));
+                laser.y += 10 * Math.cos(degToRad(180 - rotation));
+            } else if (rotation > 180 && rotation < 270) {
+                laser.x -= 10 * Math.sin(degToRad(180 + rotation));
+                laser.y += 10 * Math.cos(degToRad(180 + rotation));
+            } else {
+                laser.x -= 10 * Math.sin(degToRad(360 - rotation));
+                laser.y -= 10 * Math.cos(degToRad(360 - rotation));
+            }
+        }
+
+        // if (laser.x == asteroidPool[0].asteroid.x && laser.y == asteroidPool[0].asteroid.y) {
+        //     console.log("collision");
+        // }
+
+        // if (asteroidPool[0].asteroid.x >= laser.x + laser.width || asteroidPool[0].asteroid.x + asteroidPool[0].asteroid.width <= laser.x || asteroidPool[0].asteroid.y >= laser.y + laser.height || asteroidPool[0].asteroid.y + asteroidPool[0].asteroid.height <= laser.y) {
+        //     console.log("collision detected");
+        // }
+
+        if (spacebar) {
+            asteroidPool.forEach(asteroid => {
+                let dx = asteroid.asteroid.x - laser.x;
+                let dy = asteroid.asteroid.y - laser.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= 45) {
+                    console.log("collision detected");
+                    asteroid.destroy();
+                }
+            })
+
+        }
+
+
+
 
         stage.update();
     }

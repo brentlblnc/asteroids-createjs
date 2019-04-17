@@ -1,20 +1,13 @@
 class MoverDiagonal {
     
     constructor(sprite, stage) {
-        // private property variables
         this._speed = 2;
         this._moving = false;
         this._sprite = sprite;
         this._stage = stage;
-        // private variables
-        this._xDisplace = -1;
-        this._yDisplace = -1;
         
-        // construct custom event object for object moving off stage
-        this._eventOffStage = new createjs.Event("stageExitDiagonal", true);
-        
-        // sprite not animating on construction
-        sprite.stop();
+        this._posX = -1;
+        this._posY = -1;
     }
     
     // --------------------------------------------------- get/set methods
