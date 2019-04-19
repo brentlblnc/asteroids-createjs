@@ -12,6 +12,7 @@
     let leftKey = false;
     let rightKey = false;
     let spacebar = false;
+    let gameStart = false;
 
     // Frame rate of game
     const FRAME_RATE = 26;
@@ -20,11 +21,11 @@
     const ASTEROID_MAX_SPEED = 5;
 
     const ASTEROID_START_DELAY = 500;
-    const ASTEROID_MAX = 50;
+    const ASTEROID_MAX = 300;
     let asteroidPool = [];
     let laserPool = [];
     let asteroidsDestroyed = null;
-    let asteroidTimer = null;
+    let asteroidTimer = 500;
 
     // Game objects
     let assetManager = null;
@@ -36,6 +37,7 @@
     let asteroid = null;
     let rotation = 0;
     let laser = null;
+    let index = 0;
 
     // ------------------------------------------------------------ Event handlers
     function onReady(e) {
@@ -87,12 +89,20 @@
         // Remove click event on background
         e.remove();
 
+        gameStart = true;
+
         // Start the shooter object
         shooter.setupMe();
 
-        asteroidPool.map(asteroid => {
-            asteroid.setupMe();
-        });
+        // asteroidPool.map(asteroid => {
+        //     asteroid.setupMe();
+        // });
+
+        window.setInterval(() => {
+            ++index;
+            asteroidPool[index].initialize();
+            //asteroidPool[index].move();
+        }, asteroidTimer);
 
         asteroidsDestroyed = 0;
 
@@ -132,7 +142,7 @@
                 laserPool.push(new Laser(stage, assetManager));
                 laser = laserPool[laserPool.length - 1].laser;
                 laser.gotoAndStop("laser");
-                laser.setTransform(400, 275, 0.2, 0.2, rotation - 90);
+                laser.setTransform(400, 275, 0.1, 0.1, rotation - 90);
                 stage.addChild(laser);
                 spacebar = true;
                 break;
@@ -192,25 +202,46 @@
 
         if (spacebar) {
             if (rotation % 90 === 0) {
-                if (rotation === 0) laser.y -= 10;
-                else if (rotation === 90) laser.x += 10;
-                else if (rotation === 180) laser.y += 10;
-                else laser.x -= 10;
+                if (rotation === 0) laser.y -= 20;
+                else if (rotation === 90) laser.x += 20;
+                else if (rotation === 180) laser.y += 20;
+                else laser.x -= 20;
             }
             else if (rotation > 0 && rotation < 90) {
-                laser.x += 10 * Math.sin(degToRad(rotation));
-                laser.y -= 10 * Math.cos(degToRad(rotation));
+                laser.x += 20 * Math.sin(degToRad(rotation));
+                laser.y -= 20 * Math.cos(degToRad(rotation));
             } else if (rotation > 90 && rotation < 180) {
-                laser.x += 10 * Math.sin(degToRad(180 - rotation));
-                laser.y += 10 * Math.cos(degToRad(180 - rotation));
+                laser.x += 20 * Math.sin(degToRad(180 - rotation));
+                laser.y += 20 * Math.cos(degToRad(180 - rotation));
             } else if (rotation > 180 && rotation < 270) {
-                laser.x -= 10 * Math.sin(degToRad(180 + rotation));
-                laser.y += 10 * Math.cos(degToRad(180 + rotation));
+                laser.x -= 20 * Math.sin(degToRad(180 + rotation));
+                laser.y += 20 * Math.cos(degToRad(180 + rotation));
             } else {
-                laser.x -= 10 * Math.sin(degToRad(360 - rotation));
-                laser.y -= 10 * Math.cos(degToRad(360 - rotation));
+                laser.x -= 20 * Math.sin(degToRad(360 - rotation));
+                laser.y -= 20 * Math.cos(degToRad(360 - rotation));
             }
+
+            asteroidPool.forEach(asteroid => {
+                let dx = asteroid.asteroid.x - laser.x;
+                let dy = asteroid.asteroid.y - laser.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= 45) {
+                    console.log("collision detected");
+                    asteroid.destroy();
+                }
+
+                asteroid.update();
+            });
+
+
+
+
         }
+
+
+
+
+
 
         // if (laser.x == asteroidPool[0].asteroid.x && laser.y == asteroidPool[0].asteroid.y) {
         //     console.log("collision");
@@ -220,18 +251,8 @@
         //     console.log("collision detected");
         // }
 
-        if (spacebar) {
-            asteroidPool.forEach(asteroid => {
-                let dx = asteroid.asteroid.x - laser.x;
-                let dy = asteroid.asteroid.y - laser.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance <= 45) {
-                    console.log("collision detected");
-                    asteroid.destroy();
-                }
-            })
 
-        }
+
 
 
 
