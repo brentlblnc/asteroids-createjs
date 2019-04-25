@@ -1,4 +1,4 @@
-/* Bot Wars 
+/* Asteroids (formerly Bot Wars)
    Implemented with CreateJS
    INFT4000 Special Topics I
    Brent LeBlanc
@@ -12,41 +12,33 @@
     let leftKey = false;
     let rightKey = false;
     let spacebar = false;
-    let gameStart = false;
+    const explosion = document.querySelector("#explosion");
+    const shot = document.querySelector("#laser");
 
     // Frame rate of game
     const FRAME_RATE = 26;
 
-    // Max speed of asteroid
-    const ASTEROID_MAX_SPEED = 5;
-
     const ASTEROID_START_DELAY = 500;
-    const ASTEROID_MAX = 300;
+    let asteroidPoolTimer = null;
+    let asteroidInitializer = null;
     let asteroidPool = [];
     let laserPool = [];
-    let asteroidsDestroyed = null;
-    let asteroidTimer = 500;
 
     // Game objects
     let assetManager = null;
     let introCaption = null;
     let endCaption = null;
-    let score = null;
     let background = null;
     let shooter = null;
-    let asteroid = null;
     let rotation = 0;
     let laser = null;
     let index = 0;
 
-    // ------------------------------------------------------------ Event handlers
     function onReady(e) {
-        console.log(">> setup");
         // Remove event listener
         e.remove();
 
         // Construct game objects
-        // Might want to encapsulate all this in a UserInterface class
         background = assetManager.getSprite("spritesheet");
 
         background.setTransform(0, 0, 0.5, 0.5);
@@ -57,27 +49,20 @@
         introCaption.setTransform(140, 180, 0.5, 0.5);
         introCaption.gotoAndStop("introCaption");
 
-        //laser = assetManager.getSprite("spritesheet");
+        endCaption = assetManager.getSprite("spritesheet");
+        endCaption.setTransform(230, 220, 0.3, 0.3);
+        endCaption.gotoAndStop("endCaption");
 
         stage.addChild(introCaption);
 
-        // endCaption = assetManager.getSprite("spritesheet");
-        // endCaption.gotoAndStop("endCaption");
-        // endCaption.x = 50;
-        // endCaption.y = 50;
-
         shooter = new Shooter(stage, assetManager);
-
-        for (let i = 0; i < ASTEROID_MAX; i++) {
-            asteroidPool.push(new Asteroid(stage, assetManager, shooter));
-        }
 
         // Event listener to start game
         background.on("click", onStartGame);
 
         // ** Listen for dispatched events here ** 
+        stage.on("shooterKilled", onGameOver);
 
-        console.log(">> game ready");
         // Startup the ticker
         createjs.Ticker.framerate = FRAME_RATE;
         createjs.Ticker.on("tick", onTick);
@@ -89,24 +74,12 @@
         // Remove click event on background
         e.remove();
 
-        gameStart = true;
-
         // Start the shooter object
-        shooter.setupMe();
+        shooter.initialize();
 
-        // asteroidPool.map(asteroid => {
-        //     asteroid.setupMe();
-        // });
-
-        window.setInterval(() => {
-            ++index;
-            asteroidPool[index].initialize();
-            //asteroidPool[index].move();
-        }, asteroidTimer);
-
-        asteroidsDestroyed = 0;
-
-        //asteroidTimer = window.setInterval(onAddAsteroid, ASTEROID_START_DELAY);
+        // Start the asteroid timers
+        asteroidPoolTimer = window.setInterval(onAddAsteroid, 4);
+        asteroidInitializer = window.setInterval(onInitializeAsteroid, ASTEROID_START_DELAY);
 
         // Current state of keys
         leftKey = false;
@@ -117,39 +90,48 @@
         document.onkeyup = onKeyUp;
     }
 
-    // function onAddAsteroid(e) {
-    //     // find bug in pool and add to game
-    //     for (let i=0; i<asteroidPool.length; i++) {
-    //         let newAsteroid = asteroidPool[i];
-    //         if (newAsteroid.active === false) {
-    //             newAsteroid.active = true;
-    //             newAsteroid.setupMe();
-    //             //newAsteroid.releaseMe();
-    //             break;
-    //         }
-    //     }
-    // }
+    function onGameOver(e) {
+        stage.addChild(endCaption);
+        background.on("click", onResetGame);
+    }
+
+    function onResetGame(e) {
+        e.remove();
+        // Remove caption and reset shooter and laser
+        stage.removeChild(endCaption);
+        shooter.initialize();
+        laser.reset();
+    }
+
+    function onAddAsteroid() {
+        // Push new asteroid object into pool
+        asteroidPool.push(new Asteroid(stage, assetManager, shooter));
+    }
+
+    function onInitializeAsteroid() {
+        // Setup last asteroid object in pool
+        asteroidPool[index].initialize();
+        index++;
+    }
 
     function onKeyDown(e) {
-        // Which keystrokes are left and right?
-
-
+        // Which keystrokes were pressed?
         switch (e.keyCode) {
-            // hit spacebar
+            // Hit spacebar
             case 32:
-                //console.log("shoot!");
-                //shooter.fire(new Laser(stage, assetManager), rotation-90);
-                laserPool.push(new Laser(stage, assetManager));
-                laser = laserPool[laserPool.length - 1].laser;
-                laser.gotoAndStop("laser");
-                laser.setTransform(400, 275, 0.1, 0.1, rotation - 90);
-                stage.addChild(laser);
+                shot.play();
+                // Push new laser into object pool and initialize
+                laserPool.push(new Laser(stage, assetManager, rotation - 90));
+                laser = laserPool[laserPool.length - 1];
+                laser.initialize();
                 spacebar = true;
                 break;
+            // Hit left key
             case 37:
                 leftKey = true;
                 rightKey = false;
                 break;
+            // Hit right key
             case 39:
                 rightKey = true;
                 leftKey = false;
@@ -159,7 +141,6 @@
     }
 
     function onKeyUp(e) {
-        // Which keystrokes are left and right?
         switch (e.keyCode) {
             case 37:
                 leftKey = false;
@@ -172,12 +153,16 @@
         }
     }
 
-    function degToRad(degrees) {
-        return degrees * Math.PI / 180;
-    }
-
     function isCollision(laser, asteroid) {
-
+        // Calculate difference between x and y coordinates of sprites
+        let dx = asteroid.sprite.x - laser.sprite.x;
+        let dy = asteroid.sprite.y - laser.sprite.y;
+        // Get distance between sprites using Pythagorean Theorem
+        let distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= 45) {
+            explosion.play();
+            return true;
+        }
     }
 
     function onTick(e) {
@@ -186,10 +171,12 @@
 
         // ** Other logic here **
 
+        // Set angle back to 0 if 360 or -360
         if (rotation % 360 === 0 || rotation % -360 === 0) {
             rotation = 0;
         }
 
+        // Rotate shooter if left or right keys pressed
         if (leftKey) {
             rotation -= 10;
             shooter.rotate(rotation);
@@ -201,76 +188,39 @@
         }
 
         if (spacebar) {
-            if (rotation % 90 === 0) {
-                if (rotation === 0) laser.y -= 20;
-                else if (rotation === 90) laser.x += 20;
-                else if (rotation === 180) laser.y += 20;
-                else laser.x -= 20;
-            }
-            else if (rotation > 0 && rotation < 90) {
-                laser.x += 20 * Math.sin(degToRad(rotation));
-                laser.y -= 20 * Math.cos(degToRad(rotation));
-            } else if (rotation > 90 && rotation < 180) {
-                laser.x += 20 * Math.sin(degToRad(180 - rotation));
-                laser.y += 20 * Math.cos(degToRad(180 - rotation));
-            } else if (rotation > 180 && rotation < 270) {
-                laser.x -= 20 * Math.sin(degToRad(180 + rotation));
-                laser.y += 20 * Math.cos(degToRad(180 + rotation));
-            } else {
-                laser.x -= 20 * Math.sin(degToRad(360 - rotation));
-                laser.y -= 20 * Math.cos(degToRad(360 - rotation));
-            }
+            // Update x and y coordinates of laser
+            laser.update(laserPool);
 
-            asteroidPool.forEach(asteroid => {
-                let dx = asteroid.asteroid.x - laser.x;
-                let dy = asteroid.asteroid.y - laser.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance <= 45) {
-                    console.log("collision detected");
+            // Detect collisions
+            asteroidPool.forEach((asteroid, index) => {
+                if (isCollision(laser, asteroid)) {
                     asteroid.destroy();
+                    // Remove destroyed asteroid from object pool
+                    asteroidPool.splice(index, 1);
                 }
 
+                if (isCollision(shooter, asteroid)) {
+                    shooter.destroy();
+                }
+
+                // Update x and y coordinates of asteroid
                 asteroid.update();
             });
-
-
-
-
         }
 
-
-
-
-
-
-        // if (laser.x == asteroidPool[0].asteroid.x && laser.y == asteroidPool[0].asteroid.y) {
-        //     console.log("collision");
-        // }
-
-        // if (asteroidPool[0].asteroid.x >= laser.x + laser.width || asteroidPool[0].asteroid.x + asteroidPool[0].asteroid.width <= laser.x || asteroidPool[0].asteroid.y >= laser.y + laser.height || asteroidPool[0].asteroid.y + asteroidPool[0].asteroid.height <= laser.y) {
-        //     console.log("collision detected");
-        // }
-
-
-
-
-
-
-
+        // Update the stage!
         stage.update();
     }
 
     // ------------------------------------------------------------------------- Entry point of game
     function main() {
-        console.log(">> initializing");
-
         // Get reference to canvas
         canvas = document.getElementById("myCanvas");
         // Set canvas to as wide/high as the browser window
         canvas.width = 800;
         canvas.height = 600;
         // Create stage object
-        stage = new createjs.StageGL(canvas);
+        stage = new createjs.StageGL(canvas, { antialias: true });
         stage.setClearColor("#669900");
         stage.enableMouseOver(10);
 
