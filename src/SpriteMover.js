@@ -1,4 +1,11 @@
 class SpriteMover {
+    // Static properties
+    // static Right = 1;
+    // static Left = 2;
+    static TopScreen = 1;
+    static BottomScreen = 2;
+    static LeftScreen = 3;
+    static RightScreen = 4;
 
     constructor(sprite, stage) {
         this._speed = 5;
@@ -9,10 +16,6 @@ class SpriteMover {
         this._sprite.dx = 0;
         this._sprite.dy = 0;
     }
-
-    // Static properties
-    static Right = 1;
-    static Left = 2;
 
     // --------------------------------------------------- Get/set methods
     set speed(value) {
@@ -38,7 +41,6 @@ class SpriteMover {
         this._sprite.rotation = rotation;
 
         if (!this._moving) {
-            // Convert rotation of sprite to radians
             let radians = SpriteMover.DegToRad(this._sprite.rotation);
             // Set change in x and y coordinates
             this._sprite.dx = Math.cos(radians) * this._speed;
@@ -56,7 +58,6 @@ class SpriteMover {
 
     update() {
         if (this._moving) {
-            // Move sprite
             this._sprite.x += this._sprite.dx;
             this._sprite.y += this._sprite.dy;
         }

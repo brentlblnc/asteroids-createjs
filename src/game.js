@@ -12,15 +12,14 @@
     let leftKey = false;
     let rightKey = false;
     let spacebar = false;
+    let gameOver = false;
     const explosion = document.querySelector("#explosion");
     const shot = document.querySelector("#laser");
 
-    // Frame rate of game
     const FRAME_RATE = 26;
 
     const ASTEROID_START_DELAY = 500;
-    let asteroidPoolTimer = null;
-    let asteroidInitializer = null;
+    const ASTEROID_LASER_CONTACT_THRESHOLD = 45;
     let asteroidPool = [];
     let laserPool = [];
 
@@ -31,8 +30,6 @@
     let background = null;
     let shooter = null;
     let rotation = 0;
-    let laser = null;
-    let index = 0;
 
     function onReady(e) {
         // Remove event listener
@@ -55,8 +52,6 @@
 
         stage.addChild(introCaption);
 
-        shooter = new Shooter(stage, assetManager);
-
         // Event listener to start game
         background.on("click", onStartGame);
 
@@ -74,12 +69,11 @@
         // Remove click event on background
         e.remove();
 
-        // Start the shooter object
-        shooter.initialize();
+        // Initialize the shooter
+        shooter = new Shooter(stage, assetManager);
 
-        // Start the asteroid timers
-        asteroidPoolTimer = window.setInterval(onAddAsteroid, 4);
-        asteroidInitializer = window.setInterval(onInitializeAsteroid, ASTEROID_START_DELAY);
+        // Start the asteroid timer
+        window.setInterval(onInitializeAsteroid, ASTEROID_START_DELAY);
 
         // Current state of keys
         leftKey = false;
@@ -97,34 +91,38 @@
 
     function onResetGame(e) {
         e.remove();
-        // Remove caption and reset shooter and laser
+        gameOver = false;
+        // Remove caption and reset game
         stage.removeChild(endCaption);
-        shooter.initialize();
-        laser.reset();
-    }
-
-    function onAddAsteroid() {
-        // Push new asteroid object into pool
-        asteroidPool.push(new Asteroid(stage, assetManager, shooter));
+        rotation = 0;
+        shooter.reset();
+        // Remove any asteroids and lasers remaining on screen
+        asteroidPool.forEach(asteroid => stage.removeChild(asteroid.sprite));
+        laserPool.forEach(laser => stage.removeChild(laser.sprite));
+        asteroidPool = [];
+        laserPool = [];
     }
 
     function onInitializeAsteroid() {
         // Setup last asteroid object in pool
-        asteroidPool[index].initialize();
-        index++;
+        let asteroid = new Asteroid(stage, assetManager);
+        asteroid.initialize();
+        asteroidPool.push(asteroid);
+        console.log("asteroids: " + asteroidPool.length);
     }
 
     function onKeyDown(e) {
-        // Which keystrokes were pressed?
+        // Which keystroke was pressed?
         switch (e.keyCode) {
             // Hit spacebar
             case 32:
-                shot.play();
-                // Push new laser into object pool and initialize
-                laserPool.push(new Laser(stage, assetManager, rotation - 90));
-                laser = laserPool[laserPool.length - 1];
-                laser.initialize();
-                spacebar = true;
+                if (!gameOver) {
+                    shot.play();
+                    // Push new laser into object pool and initialize
+                    let laser = new Laser(stage, assetManager, rotation - 90);
+                    laserPool.push(laser);
+                    spacebar = true;
+                }
                 break;
             // Hit left key
             case 37:
@@ -136,87 +134,103 @@
                 rightKey = true;
                 leftKey = false;
                 break;
-            default: console.log("some other button");
+            default:
+                console.log("Some other button pressed");
+                break;
         }
     }
 
     function onKeyUp(e) {
         switch (e.keyCode) {
             case 37:
-                leftKey = false;
-                rightKey = false;
-                break;
             case 39:
                 leftKey = false;
                 rightKey = false;
                 break;
+            default:
+                break;
         }
     }
 
-    function isCollision(laser, asteroid) {
+    function isCollision(object1, object2) {
         // Calculate difference between x and y coordinates of sprites
-        let dx = asteroid.sprite.x - laser.sprite.x;
-        let dy = asteroid.sprite.y - laser.sprite.y;
+        let dx = object1.sprite.x - object2.sprite.x;
+        let dy = object1.sprite.y - object2.sprite.y;
         // Get distance between sprites using Pythagorean Theorem
         let distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance <= 45) {
-            explosion.play();
-            return true;
-        }
+        return distance <= ASTEROID_LASER_CONTACT_THRESHOLD;
     }
 
     function onTick(e) {
         // Testing FPS of game
         document.getElementById("fps").innerHTML = createjs.Ticker.getMeasuredFPS();
 
-        // ** Other logic here **
+        // TODO: Remove asteroids and lasers from their respective pool if no longer displayed on screen
+        updateEntityPositions(asteroidPool);
+        updateEntityPositions(laserPool);
 
-        // Set angle back to 0 if 360 or -360
-        if (rotation % 360 === 0 || rotation % -360 === 0) {
-            rotation = 0;
-        }
+        // if (asteroidPool.length > 1) {
+        //     asteroidPool = asteroidPool.filter(asteroid => isDisplayedOnScreen(asteroid.sprite));
+        // }
 
-        // Rotate shooter if left or right keys pressed
-        if (leftKey) {
-            rotation -= 10;
-            shooter.rotate(rotation);
-        }
-
-        if (rightKey) {
-            rotation += 10;
-            shooter.rotate(rotation);
-        }
-
-        if (spacebar) {
-            // Update x and y coordinates of laser
-            laser.update(laserPool);
-
-            // Detect collisions
-            asteroidPool.forEach((asteroid, index) => {
-                if (isCollision(laser, asteroid)) {
-                    asteroid.destroy();
-                    // Remove destroyed asteroid from object pool
-                    asteroidPool.splice(index, 1);
-                }
-
-                if (isCollision(shooter, asteroid)) {
+        if (!gameOver) {
+            asteroidPool.forEach(asteroid => {
+                if (!shooter.exploding && isCollision(shooter, asteroid)) {
+                    gameOver = true;
+                    explosion.play();
                     shooter.destroy();
                 }
-
-                // Update x and y coordinates of asteroid
-                asteroid.update();
             });
+
+            // rotation = ((rotation % 360) + 360) % 360;
+
+            // Rotate shooter if left or right keys pressed
+            if (leftKey) {
+                rotation -= 10;
+                shooter.rotate(rotation);
+            }
+
+            if (rightKey) {
+                rotation += 10;
+                shooter.rotate(rotation);
+            }
+
+            if (spacebar) {
+                // Detect collisions
+                asteroidPool.forEach((asteroid, index) => {
+                    // TODO: compare locations of all lasers against the location of all asteroids
+                    let laser = laserPool[laserPool.length - 1];
+                    if (laser != null && isCollision(laser, asteroid)) {
+                        explosion.play();
+                        asteroid.destroy();
+                        // Remove destroyed asteroid from object pool
+                        asteroidPool.splice(index, 1);
+                    }
+                });
+            }
         }
 
         // Update the stage!
         stage.update();
     }
 
+    function updateEntityPositions(entities) {
+        entities.forEach(entity => entity.sprite.mover.update());
+    }
+
+    function isDisplayedOnScreen(sprite) {
+        // displayed on screen when x coordinate (plus width of sprite?) is less than width of canvas AND y coordinate 
+        // (plus height of sprite) is less than height of canvas
+        // and x coordinate is greater than 0 and y coordinate is greater than 0
+        return sprite.x + sprite.getTransformedBounds().width < canvas.width && sprite.y + sprite.getTransformedBounds().height < canvas.height
+            && sprite.x > 0 && sprite.y > 0;
+    }
+
     // ------------------------------------------------------------------------- Entry point of game
     function main() {
         // Get reference to canvas
         canvas = document.getElementById("myCanvas");
-        // Set canvas to as wide/high as the browser window
+        // Set canvas to be as wide/high as the browser window
         canvas.width = 800;
         canvas.height = 600;
         // Create stage object
